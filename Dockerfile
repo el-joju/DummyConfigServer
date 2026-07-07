@@ -1,16 +1,26 @@
-# Usamos una imagen ligera de Java 21
-FROM eclipse-temurin:21-jre-alpine
-
-# Definimos un directorio de trabajo
+# --- ETAPA 1: COMPILACIÓN ---
+# Usamos una imagen de Maven con Java 21 para compilar el código fuente
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 
-# Copiamos el JAR generado en tu carpeta target (ajusta si usas Gradle a build/libs/)
-# El asterisco ayuda a no tener que poner el nombre exacto del archivo con su versión
-COPY target/*.jar app.jar
+# Copiamos el archivo de configuración de Maven
+COPY pom.xml .
 
-# Exponemos el puerto (esto es opcional y solo documentativo, pero buena práctica)
-# Cambia este puerto según el servicio (Ej: 8888 para Config, 8761 para Eureka, etc.)
+# Copiamos el código fuente de tu microservicio
+COPY src ./src
+
+# Compilamos y generamos el archivo .jar dentro del contenedor
+RUN mvn clean package -DskipTests
+
+# --- ETAPA 2: IMAGEN FINAL DE EJECUCIÓN ---
+# Usamos la imagen ligera de ejecución que ya conoces
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+# En lugar de copiar de tu laptop, copiamos el .jar generado en la ETAPA 1
+COPY --from=build /app/target/*.jar app.jar
+
+# Exponemos el puerto correspondiente (ej: 9003, 9000, etc.)
 EXPOSE 9003
 
-# Comando para ejecutar la aplicación
 ENTRYPOINT ["java", "-jar", "app.jar"]
